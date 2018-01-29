@@ -1,60 +1,35 @@
 import * as React from 'react';
 import './App.css';
-
-const logo = require('./logo.svg');
-
-interface SpeechRecognition {
-  continous: boolean;
-  interimResults: boolean;
-  onresult: Function;
-  onend: Function;
-  lang: string;
-  start: Function;
-  stop: Function;
-
-  new(): this;
-}
-
-interface SpeechWindow extends Window {
-  webkitSpeechRecognition: SpeechRecognition;
-  id: number;
-}
-
-interface SpeechSubresult {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechResult {
-  isFinal: boolean;
-  results: SpeechSubresult[];
-}
-
-interface SpeechEvent {
-  results?: SpeechResult[];
-}
+import TodoItem from './TodoItem';
+import SpeechRecognitionService from './speechRecognitionService';
+import SpeechProcessorService from './speechProcessorService';
 
 interface State {
-  recognizing: boolean;
+  recording: boolean;
   result?: string;
   todos: Todo[];
 }
 
-interface Todo {
+export interface Todo {
   id: number;
   text: string;
   completed: boolean;
 }
 
-(window as SpeechWindow).id = 0;
+let todoId = 0;
 
 class App extends React.Component<{} | undefined, State> {
-  recognition: SpeechRecognition;
+  recognition: SpeechRecognitionService;
+  processor: SpeechProcessorService;
   input: HTMLInputElement | null;
 
   constructor(props?: {}) {
     super(props);
-    this.state = { recognizing: false, todos: [] };
+    this.state = { recording: false, todos: [] };
+    this.recognition = new SpeechRecognitionService();
+    this.processor = new SpeechProcessorService(this.state.todos);
+    this.processor.addTodoHandler = this.addTodo;
+    this.processor.toggleTodoHandler = this.toggle;
   }
 
   componentDidMount() {
@@ -62,67 +37,64 @@ class App extends React.Component<{} | undefined, State> {
   }
 
   startRecording = () => {
-    this.recognition = new (window as SpeechWindow).webkitSpeechRecognition();
-    this.recognition.continous = true;
-    console.log('starting');
-    this.recognition.interimResults = true;
-    this.recognition.onresult = (event: SpeechEvent) => {
-      if (!event.results) {
-        return;
+    this.recognition.onResult((result, isFinal) => {
+      if (isFinal) {
+        this.processor.process(result);
       }
-      console.log(event.results);
-      const firstResult = event.results[0];
-      if (!firstResult.isFinal) {
-        return;
-      }
-      this.setState({ result: firstResult[0].transcript });
-    };
-    this.recognition.onend = () => {
-      this.setState({ recognizing: false });
-    };
-    this.recognition.lang = 'en-US';
+      this.setState({ result });
+    });
+    this.recognition.onEnd(() => {
+      this.setState({ recording: false });
+    });
     this.recognition.start();
-    this.setState({ recognizing: true });
+    this.setState({ recording: true });
   }
 
   stopRecording = () => {
-    this.setState({ recognizing: false });
+    this.setState({ recording: false });
     this.recognition.stop();
   }
 
   toggleRecording = () => {
-    this.state.recognizing ? this.stopRecording() : this.startRecording();
+    this.state.recording ? this.stopRecording() : this.startRecording();
   }
 
   addTodo = (text: string) => {
     const todos = this.state.todos;
-    todos.push({ id: (window as SpeechWindow).id++, text: text, completed: false });
+    const todo = { id: todoId++, text: text, completed: false };
+    todos.push(todo);
     this.setState({ todos });
     this.input!.value = '';
     this.input!.focus();
-    console.log(this.state.todos);
+    return todos;
+  }
+
+  toggle = (updatedTodo: Todo) => {
+    const updatedTodos = this.state.todos.map(todo => {
+      return (todo !== updatedTodo) ? todo : {
+        ...todo,
+        completed: !todo.completed,
+      };
+    });
+    this.setState({ todos: updatedTodos });
+    return updatedTodos;
   }
 
   render() {
     return (
-      <div className="App">
+      <div>
         <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
+        Voice todos
         </header>
-        <p className="App-intro">
-          <button onClick={this.toggleRecording}>{this.state.recognizing ? 'Stop' : 'Start'} recording</button>
-        </p>
-        {this.state.result && <p>{this.state.result}</p>}
-        <form onSubmit={event => { this.addTodo(this.input!.value); event.preventDefault(); }}>
-          <input ref={node => this.input = node} />
-          <button type="submit">Add</button>
-        </form>
-        <ul>
-          {this.state.todos.map(todo => {
-          return (<li key={todo.id}><input type="checkbox" checked={todo.completed}/> {todo.text}</li>);
-          })}
-        </ul>
+        <div className="App">
+          <button onClick={this.toggleRecording}>{this.state.recording ? 'Stop' : 'Start'} recording</button>
+          {this.state.result && <p>Transcript: {this.state.result}</p>}
+          <form onSubmit={event => { this.addTodo(this.input!.value); event.preventDefault(); }}>
+            <input ref={node => this.input = node} />
+            <button type="submit">Add</button>
+          </form>
+          <TodoItem todos={this.state.todos} onToggle={this.toggle} />
+        </div>
       </div>
     );
   }

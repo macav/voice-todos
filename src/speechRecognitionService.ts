@@ -6,6 +6,7 @@ export default class SpeechRecognitionService {
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
     this.recognition.lang = 'en-US';
+    this.recognition.maxAlternatives = 1;
   }
 
   onResult = (callback: (result: string, isFinal: boolean) => void) => {

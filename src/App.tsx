@@ -1,6 +1,6 @@
 import * as React from 'react';
 import './App.css';
-import TodoItem from './TodoItem';
+import TodoList from './TodoList';
 import SpeechRecognitionService from './speechRecognitionService';
 import SpeechProcessorService from './speechProcessorService';
 
@@ -60,9 +60,8 @@ class App extends React.Component<{} | undefined, State> {
   }
 
   addTodo = (text: string) => {
-    const todos = this.state.todos;
     const todo = { id: todoId++, text: text, completed: false };
-    todos.push(todo);
+    const todos = [...this.state.todos, todo];
     this.setState({ todos });
     this.input!.value = '';
     this.input!.focus();
@@ -93,7 +92,7 @@ class App extends React.Component<{} | undefined, State> {
             <input ref={node => this.input = node} />
             <button type="submit">Add</button>
           </form>
-          <TodoItem todos={this.state.todos} onToggle={this.toggle} />
+          <TodoList todos={this.state.todos} onToggle={this.toggle} />
         </div>
       </div>
     );

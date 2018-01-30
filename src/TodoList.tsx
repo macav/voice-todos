@@ -6,7 +6,7 @@ interface Props {
   onToggle: (todo: Todo) => void;
 }
 
-export default class TodoItem extends React.Component<Props> {
+export default class TodoList extends React.Component<Props> {
   render() {
     const { todos } = this.props;
     return (
